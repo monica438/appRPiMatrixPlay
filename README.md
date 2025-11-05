@@ -1,9 +1,11 @@
 # appRPiMatrixPlay
+- **Servidor**
+  [servidorSRVMatrixPlay](https://github.com/monica438/servidorSRVMatrixPlay)
 
-- 🖥️ **App de Escritorio**  
+- 🖥️ **App d'escriptori**  
   [appDesktopMatrixPlay](https://github.com/monica438/appDesktopMatrixPlay)
 
-- 📱 **App Móvil**  
+- 📱 **App de mòbil**  
   [appMobilMatrixPlay](https://github.com/monica438/appMobilMatrixPlay)
 
 ---
