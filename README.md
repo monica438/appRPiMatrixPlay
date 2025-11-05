@@ -1,5 +1,5 @@
 # appRPiMatrixPlay
-- **Servidor**
+- 🖧 **Servidor principal**  
   [servidorSRVMatrixPlay](https://github.com/monica438/servidorSRVMatrixPlay)
 
 - 🖥️ **App d'escriptori**  
