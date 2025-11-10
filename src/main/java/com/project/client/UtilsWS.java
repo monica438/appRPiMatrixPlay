@@ -1,5 +1,7 @@
 package com.project.client;
 
+import org.json.JSONObject;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.Executors;
@@ -125,6 +127,7 @@ public class UtilsWS {
         try {
             if (client != null && client.isOpen()) {
                 client.send(text);
+                System.out.println("WS Sent message: " + text);
             } else {
                 System.out.println("WS Error: Client is not connected. Attempting to reconnect...");
                 scheduleReconnect();

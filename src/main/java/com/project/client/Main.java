@@ -43,7 +43,22 @@ public class Main {
     public Main(String serverUri) {
         ws = UtilsWS.getSharedInstance(serverUri);
         ws.onMessage(this::onWsMessage);
+        ws.onOpen(this::onWsOpen);
     }
+
+    private void onWsOpen(String msg) {
+        try {
+            // Identificación como Raspberry
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("type", "raspberry");
+            jsonObject.put("message", "solicito_config");
+            ws.safeSend(jsonObject.toString());
+            System.out.println("[client] Solicitud de configuración enviada al servidor");
+        } catch (Exception e) {
+            System.out.println("[client] Error enviando solicitud: " + e.getMessage());
+        }
+    }
+
 
     private void onWsMessage(String msg) {
         try {
@@ -58,6 +73,18 @@ public class Main {
                     image = null;
                     mode = Mode.TEXT;
                     System.out.println("[client] TEXT: " + text);
+                }
+                case "config" -> {
+                    String groupName = o.optString("groupName", "desconocido");
+
+                    // Guardamos el texto y activamos el modo texto
+                    text = "Grupo: " + groupName;
+                    mode = Mode.TEXT;
+
+                    // Tiempo que queremos que se muestre (ej: 10 segundos)
+                    expireAtMs = System.currentTimeMillis() + 100_000L;
+
+                    System.out.println("[client] Nombre del grupo recibido: " + groupName);
                 }
                 case "image" -> {
                     String b64 = o.optString("b64", "");
@@ -255,6 +282,7 @@ public class Main {
     public static void main(String[] args) {
         String serverURI = (args.length > 0) ? args[0] : "wss://matrixplay4.ieti.site:443";
         Main app = new Main(serverURI);
+
         app.run();
     }
 }

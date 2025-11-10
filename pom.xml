@@ -55,6 +55,29 @@
           </execution>
         </executions>
       </plugin>
+
+            <!-- Empaquetar en un JAR executable (client) -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.3.0</version>
+        <executions>
+          <execution>
+            <id>shade-client</id>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>com.project.client.Main</mainClass>
+                </transformer>
+              </transformers>
+              <finalName>client-package</finalName>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
   </build>
 
@@ -93,3 +116,4 @@
     </dependency>
   </dependencies>
 </project>
+

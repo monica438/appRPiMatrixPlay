@@ -10,13 +10,15 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.11.0</version>
         <configuration>
-          <source>20</source>
-          <target>20</target>
-          <compilerArgs>
-            <arg>--add-opens=java.base/java.lang=ALL-UNNAMED</arg>
-            <arg>--add-opens=java.base/java.nio=ALL-UNNAMED</arg>
-            <arg>--add-opens=java.base/java.util=ALL-UNNAMED</arg>
-          </compilerArgs>
+          <release>${maven.compiler.release}</release>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.6.2</version>
+        <configuration>
+          <cleanupDaemonThreads>false</cleanupDaemonThreads>
         </configuration>
       </plugin>
       <plugin>
@@ -31,7 +33,7 @@
             <configuration>
               <transformers>
                 <transformer>
-                  <mainClass>com.server.Main</mainClass>
+                  <mainClass>com.project.server.Main</mainClass>
                 </transformer>
               </transformers>
               <finalName>server-package</finalName>
@@ -39,37 +41,32 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.3.0</version>
+        <executions>
+          <execution>
+            <id>shade-client</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer>
+                  <mainClass>com.project.client.Main</mainClass>
+                </transformer>
+              </transformers>
+              <finalName>client-package</finalName>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
-  <profiles>
-    <profile>
-      <id>runMain</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <version>1.6.0</version>
-            <executions>
-              <execution>
-                <goals>
-                  <goal>java</goal>
-                </goals>
-              </execution>
-            </executions>
-            <configuration>
-              <mainClass>${exec.mainClass}</mainClass>
-              <arguments>
-                <argument>${javafx.platform}</argument>
-              </arguments>
-              <systemPropertyVariables>
-                <javafx.platform>${javafx.platform}</javafx.platform>
-              </systemPropertyVariables>
-              <classpathScope>test</classpathScope>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.parameters>true</maven.compiler.parameters>
+  </properties>
 </project>
