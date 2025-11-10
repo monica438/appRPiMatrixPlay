@@ -253,7 +253,7 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        String serverURI = (args.length > 0) ? args[0] : "ws://localhost:3000";
+        String serverURI = (args.length > 0) ? args[0] : "wss://matrixplay4.ieti.site:443";
         Main app = new Main(serverURI);
         app.run();
     }
