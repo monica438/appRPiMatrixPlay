@@ -113,7 +113,7 @@ public class Main {
                                     lastScrollTime = System.currentTimeMillis();
                                     mode = Mode.TEXT;
                                     // Mostrar la URL por 10 segundos
-                                    expireAtMs = System.currentTimeMillis() + 10_000L;
+                                    expireAtMs = System.currentTimeMillis() + 30_000L;
                                     System.out.println("[client] Mostrando URL con scroll: " + url);
                                 });
                             } else {
@@ -123,6 +123,22 @@ public class Main {
                             Thread.currentThread().interrupt();
                         }
                     }).start();
+                }
+                case "countdown" -> {
+                    int value = o.optInt("value", 3);
+                    
+                    if (value > 0) {
+                        // Mostrar el número del countdown (3, 2, 1)
+                        text = String.valueOf(value);
+                        mode = Mode.TEXT;
+                        System.out.println("[client] Countdown: " + value);
+                    } else {
+                        // Cuando value es 0, limpiar la pantalla
+                        mode = Mode.NONE;
+                        text = null;
+                        System.out.println("[client] Countdown terminado");
+                    }
+                    image = null;
                 }
                 case "image" -> {
                     String b64 = o.optString("b64", "");
