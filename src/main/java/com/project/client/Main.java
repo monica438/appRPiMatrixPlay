@@ -34,6 +34,11 @@ public class Main {
     private static final int RESERVED_TOP = 12;
     private static final int TEXT_TOP_PAD = 2; // separació extra respecte l'overlay
 
+    // Variables para scroll horizontal
+    private volatile int scrollX = 0;
+    private volatile long lastScrollTime = 0;
+    private volatile String scrollingText = null;
+
     // Estat missatge
     private enum Mode { NONE, TEXT, IMAGE }
     private volatile Mode mode = Mode.NONE;
@@ -83,6 +88,8 @@ public class Main {
                     // Guardamos el texto y activamos el modo texto
                     text = "Grupo: " + groupName;
                     mode = Mode.TEXT;
+                    scrollX = 0; // Reset scroll
+                    scrollingText = null;
 
                     // Tiempo que queremos que se muestre (3 segundos)
                     expireAtMs = System.currentTimeMillis() + 3_000L;
@@ -101,10 +108,13 @@ public class Main {
                                 // Actualizar el texto con la URL (en el hilo principal)
                                 javax.swing.SwingUtilities.invokeLater(() -> {
                                     text = "URL: " + url;
+                                    scrollingText = "URL: " + url; // Guardar texto completo para scroll
+                                    scrollX = WIDTH; // Empezar desde la derecha
+                                    lastScrollTime = System.currentTimeMillis();
                                     mode = Mode.TEXT;
                                     // Mostrar la URL por 10 segundos
                                     expireAtMs = System.currentTimeMillis() + 10_000L;
-                                    System.out.println("[client] Mostrando URL: " + url);
+                                    System.out.println("[client] Mostrando URL con scroll: " + url);
                                 });
                             } else {
                                 System.out.println("[client] No se encontró URL en el archivo JSON");
@@ -207,12 +217,34 @@ public class Main {
                         g.setColor(Color.WHITE);
                         FontMetrics fm = g.getFontMetrics();
 
-                        // Word-wrap amb mètriques reals, tallat vertical i horitzontal (amb ‘…’)
-                        List<String> lines = wrapText(text, fm, availW, availH);
-                        int y = startY + fm.getAscent();
-                        for (String line : lines) {
-                            g.drawString(line, TEXT_X, y);
-                            y += fm.getHeight();
+                        // Calcular ancho total del texto
+                        int textWidth = fm.stringWidth(text);
+                        
+                        // Si el texto es más ancho que el espacio disponible y tenemos scrollingText, activar scroll
+                        if (textWidth > availW && scrollingText != null) {
+                            // Actualizar scroll cada 100ms
+                            long currentTime = System.currentTimeMillis();
+                            if (currentTime - lastScrollTime > 100) {
+                                scrollX -= 1; // Mover hacia la izquierda
+                                lastScrollTime = currentTime;
+                                
+                                // Resetear scroll cuando el texto haya salido completamente
+                                if (scrollX + textWidth < 0) {
+                                    scrollX = WIDTH;
+                                }
+                            }
+                            
+                            // Dibujar texto con posición de scroll
+                            g.drawString(scrollingText, TEXT_X + scrollX, startY + fm.getAscent());
+                            
+                        } else {
+                            // Texto normal sin scroll (word-wrap)
+                            List<String> lines = wrapText(text, fm, availW, availH);
+                            int y = startY + fm.getAscent();
+                            for (String line : lines) {
+                                g.drawString(line, TEXT_X, y);
+                                y += fm.getHeight();
+                            }
                         }
 
                     } else if (mode == Mode.IMAGE && image != null) {
@@ -224,6 +256,8 @@ public class Main {
                     mode = Mode.NONE;
                     text = null;
                     image = null;
+                    scrollingText = null; // Resetear también el texto de scroll
+                    scrollX = 0;
                 }
 
                 // FPS overlay (queda per sobre)
@@ -246,7 +280,6 @@ public class Main {
             ws.forceExit();
         }
     }
-
     /**
      * Fa word-wrap amb mètriques (FontMetrics) respectant amplada i alçada disponibles.
      * Trunca l'última línia amb ‘…’ si no hi cap tot el text.
