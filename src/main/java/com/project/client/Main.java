@@ -6,6 +6,9 @@ import com.piomatter.UtilsImage;
 import com.piomatter.UtilsImage.FitMode;
 
 import org.json.JSONObject;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.Files;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -81,10 +84,35 @@ public class Main {
                     text = "Grupo: " + groupName;
                     mode = Mode.TEXT;
 
-                    // Tiempo que queremos que se muestre (ej: 10 segundos)
-                    expireAtMs = System.currentTimeMillis() + 100_000L;
+                    // Tiempo que queremos que se muestre (3 segundos)
+                    expireAtMs = System.currentTimeMillis() + 3_000L;
 
                     System.out.println("[client] Nombre del grupo recibido: " + groupName);
+
+                    // Programar la carga de la URL después de que termine el tiempo del grupo
+                    new Thread(() -> {
+                        try {
+                            // Esperar exactamente el tiempo que se muestra el grupo + un pequeño margen
+                            Thread.sleep(3_000L + 100L);
+                            
+                            // Cargar la URL desde el archivo JSON en la carpeta dades
+                            String url = loadUrlFromJson();
+                            if (url != null && !url.isEmpty()) {
+                                // Actualizar el texto con la URL (en el hilo principal)
+                                javax.swing.SwingUtilities.invokeLater(() -> {
+                                    text = "URL: " + url;
+                                    mode = Mode.TEXT;
+                                    // Mostrar la URL por 10 segundos
+                                    expireAtMs = System.currentTimeMillis() + 10_000L;
+                                    System.out.println("[client] Mostrando URL: " + url);
+                                });
+                            } else {
+                                System.out.println("[client] No se encontró URL en el archivo JSON");
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }).start();
                 }
                 case "image" -> {
                     String b64 = o.optString("b64", "");
@@ -111,6 +139,29 @@ public class Main {
                 }
             }
         } catch (Exception ignored) {}
+    }
+
+
+    private String loadUrlFromJson() {
+        try {
+            // Usar la ruta exacta donde se encontró el archivo
+            Path jsonPath = Paths.get("src/main/java/com/project/dades/url.json");
+            
+            if (!Files.exists(jsonPath)) {
+                System.out.println("[client] Archivo url.json no encontrado");
+                return null;
+            }
+
+            String content = new String(Files.readAllBytes(jsonPath));
+            JSONObject jsonObject = new JSONObject(content);
+            String url = jsonObject.optString("url", "");
+            System.out.println("[client] URL cargada: " + url);
+            return url;
+            
+        } catch (Exception e) {
+            System.out.println("[client] Error cargando url.json: " + e.getMessage());
+            return null;
+        }
     }
 
     public void run() {
