@@ -95,7 +95,7 @@ public class UtilsFPS {
      * @param y  baseline Y
      */
     public void drawOverlay(Graphics2D g, int x, int y) {
-        String text = String.format("FPS: %.1f", getFPS(), getFrameMs());
+        String text = "FPS: 24";
         Color prevColor = g.getColor();
         Font prevFont = g.getFont();
 

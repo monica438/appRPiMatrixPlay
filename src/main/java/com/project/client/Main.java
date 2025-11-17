@@ -6,6 +6,7 @@ import com.piomatter.UtilsImage;
 import com.piomatter.UtilsImage.FitMode;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.Files;
@@ -25,7 +26,7 @@ public class Main {
     private static final int WIDTH = 64, HEIGHT = 64;
     private static final int ADDR = 5;          // ABCDE
     private static final int LANES = 2;         // 2 lanes
-    private static final int BRIGHTNESS = 200;  // 0..255
+    private static final int BRIGHTNESS = 100;  // 0..255
     private static final int FPS_CAP = 60;
 
     // Dibuix
@@ -46,15 +47,30 @@ public class Main {
     private volatile BufferedImage image = null;
     private volatile long expireAtMs = 0L;
 
+    private volatile Boolean alreadyConfigured = false;
+
     private final UtilsWS ws;
+
+
+    // Estat del joc
+    private volatile boolean jocActiu = false;
+    private volatile int j1Punts = 0;
+    private volatile int j2Punts = 0;
+    private volatile List<GameObject> gameObjects = new ArrayList<>();
 
     public Main(String serverUri) {
         ws = UtilsWS.getSharedInstance(serverUri);
+
+        ws.onClose((reason) -> System.out.println("[client] WebSocket cerrado: " + reason));
+        ws.onError((e) -> System.out.println("[client] WebSocket error: " + e));
+
         ws.onMessage(this::onWsMessage);
         ws.onOpen(this::onWsOpen);
+
     }
 
     private void onWsOpen(String msg) {
+        if (alreadyConfigured) return;
         try {
             // Identificación como Raspberry
             JSONObject jsonObject = new JSONObject();
@@ -72,8 +88,13 @@ public class Main {
         try {
             JSONObject o = new JSONObject(msg);
             String t = o.optString("type", "");
-            long ttl = Math.max(1, o.optLong("ttl_ms", 5000L));
-            expireAtMs = System.currentTimeMillis() + ttl;
+
+            // Només si no és jocData
+            if (!t.equals("jocData")) {
+                long ttl = Math.max(1, o.optLong("ttl_ms", 5000L));
+                expireAtMs = System.currentTimeMillis() + ttl;
+            }
+            
 
             switch (t) {
                 case "text" -> {
@@ -83,7 +104,10 @@ public class Main {
                     System.out.println("[client] TEXT: " + text);
                 }
                 case "config" -> {
-                    String groupName = o.optString("groupName", "desconocido");
+                    String groupName = o.optString("groupName", "groupName desconocido");
+                    String url = o.optString("url", "url desconocida");
+
+                    alreadyConfigured = true;
 
                     // Guardamos el texto y activamos el modo texto
                     text = "Grupo: " + groupName;
@@ -103,7 +127,6 @@ public class Main {
                             Thread.sleep(3_000L + 100L);
                             
                             // Cargar la URL desde el archivo JSON en la carpeta dades
-                            String url = loadUrlFromJson();
                             if (url != null && !url.isEmpty()) {
                                 // Actualizar el texto con la URL (en el hilo principal)
                                 javax.swing.SwingUtilities.invokeLater(() -> {
@@ -140,6 +163,46 @@ public class Main {
                     }
                     image = null;
                 }
+                case "jocData" -> {
+                    String estatPartida = o.optString("estatPartida","");
+
+                    if (estatPartida.equals("Jugant")) {
+                        jocActiu = true;
+
+                        // Actualitzar punts
+                        j1Punts = o.optInt("J1Punts", 0);
+                        j2Punts = o.optInt("J2Punts", 0);
+
+                        // Obtenir dades dels objectes
+                        JSONArray objectsList = o.optJSONArray("objectsList");
+                        if (objectsList != null) {
+
+                            gameObjects.clear();
+
+                            for (int i = 0; i < objectsList.length(); i++) {
+                                JSONObject object = objectsList.getJSONObject(i);
+
+                                // Escalem les coordenades i dimensions segons la mida de la pantalla
+                                //GameObject gameObject = GameObject.fromJSON(object, WIDTH, HEIGHT);
+                                GameObject gameObject = GameObject.fromJSONScaledToGameArea(
+                                    object,
+                                    WIDTH,
+                                    HEIGHT,
+                                    RESERVED_TOP,
+                                    600,
+                                    400
+                                );
+
+                                // Afegim l'objecte a la llista
+                                gameObjects.add(gameObject);
+                            }
+                        }
+
+                    } else {
+                        jocActiu = false;
+                        gameObjects.clear();
+                    }
+                }
                 case "image" -> {
                     String b64 = o.optString("b64", "");
                     if (b64.isEmpty()) { mode = Mode.NONE; return; }
@@ -168,7 +231,7 @@ public class Main {
     }
 
 
-    private String loadUrlFromJson() {
+    public static String loadUrlFromJson() {
         try {
             // Usar la ruta exacta donde se encontró el archivo
             Path jsonPath = Paths.get("src/main/java/com/project/dades/url.json");
@@ -216,9 +279,98 @@ public class Main {
             while (true) {
                 fps.beginFrame();
 
-                // Fons negre
-                g.setColor(Color.BLACK);
-                g.fillRect(0, 0, WIDTH, HEIGHT);
+                // ========================
+                //   SI EL JUEGO ESTÁ ACTIVO
+                // ========================
+                if (jocActiu) {
+
+                    // 1) Fondo azul en toda la pantalla menos la franja superior
+                    g.setColor(Color.BLUE);
+                    g.fillRect(0, RESERVED_TOP, WIDTH, HEIGHT - RESERVED_TOP);
+
+                    // 2) Dibujar marcador arriba (sobre fondo negro)
+                    g.setColor(Color.BLACK);
+                    g.fillRect(0, 0, WIDTH, RESERVED_TOP);
+
+                    g.setColor(Color.WHITE);
+                    Font scoreFont = new Font("SansSerif", Font.BOLD, 10);
+                    g.setFont(scoreFont);
+                    FontMetrics fmTop = g.getFontMetrics();
+
+                    // Puntajes
+                    g.drawString(String.valueOf(j1Punts), 2, fmTop.getAscent());
+                    g.drawString(String.valueOf(j2Punts),
+                                WIDTH - fmTop.stringWidth(String.valueOf(j2Punts)) - 2,
+                                fmTop.getAscent());
+
+                    // 3) Dibujar objetos del juego
+                    for (GameObject go : new ArrayList<>(gameObjects)) {
+                        Color col = switch (go.color.toUpperCase()) {
+                            case "RED" -> Color.RED;
+                            case "BLACK" -> Color.BLACK;
+                            case "WHITE" -> Color.WHITE;
+                            default -> Color.GRAY;
+                        };
+                        g.setColor(col);
+                        g.fillRect(go.x, go.y, go.ancho, go.alto);
+                    }
+
+                } else {
+
+                    // ========================
+                    //   ESTADO NORMAL (NO JUGANT)
+                    // ========================
+
+                    // Fondo negro
+                    g.setColor(Color.BLACK);
+                    g.fillRect(0, 0, WIDTH, HEIGHT);
+
+                    // Dibujar el título en la franja superior
+                    g.setColor(Color.WHITE);
+                    Font titleFont = new Font("SansSerif", Font.BOLD, 9);
+                    g.setFont(titleFont);
+                    FontMetrics fmTop = g.getFontMetrics();
+
+                    g.drawString("PONG GAME", 1, fmTop.getAscent());
+
+                    // Dibujar lo normal (texto o imagen)
+                    int startY = RESERVED_TOP + TEXT_TOP_PAD;
+                    int availH = HEIGHT - startY;
+                    int availW = WIDTH - TEXT_X;
+
+                    boolean alive = System.currentTimeMillis() < expireAtMs;
+
+                    if (alive && mode == Mode.TEXT && text != null) {
+                        g.setFont(font);
+                        g.setColor(Color.WHITE);
+                        FontMetrics fm = g.getFontMetrics();
+
+                        int textWidth = fm.stringWidth(text);
+
+                        if (textWidth > availW && scrollingText != null) {
+                            long currentTime = System.currentTimeMillis();
+                            if (currentTime - lastScrollTime > 100) {
+                                scrollX -= 1;
+                                lastScrollTime = currentTime;
+                                if (scrollX + textWidth < 0) scrollX = WIDTH;
+                            }
+
+                            g.drawString(scrollingText, TEXT_X + scrollX, startY + fm.getAscent());
+
+                        } else {
+                            List<String> lines = wrapText(text, fm, availW, availH);
+                            int y = startY + fm.getAscent();
+                            for (String line : lines) {
+                                g.drawString(line, TEXT_X, y);
+                                y += fm.getHeight();
+                            }
+                        }
+
+                    } else if (alive && mode == Mode.IMAGE && image != null) {
+                        UtilsImage.drawImageFit(g, image, 0, 0, WIDTH, HEIGHT, FitMode.CONTAIN);
+                    }
+                }
+
 
                 // Zona de dibuix de text (evitant l'overlay d'FPS)
                 int startY = Math.max(0, RESERVED_TOP + TEXT_TOP_PAD);
@@ -227,7 +379,7 @@ public class Main {
 
                 // Pinta segons mode si no ha caducat
                 boolean alive = System.currentTimeMillis() < expireAtMs;
-                if (alive) {
+                if (alive || jocActiu) {
                     if (mode == Mode.TEXT && text != null) {
                         g.setFont(font);
                         g.setColor(Color.WHITE);
@@ -277,7 +429,7 @@ public class Main {
                 }
 
                 // FPS overlay (queda per sobre)
-                fps.drawOverlay(g, 1, 9);
+                //fps.drawOverlay(g, 1, 9);
 
                 // Volcat framebuffer
                 PioMatter.copyBufferedImageToRGB888(back, fb.data, fb.strideBytes, WIDTH, HEIGHT, BRIGHTNESS);
@@ -380,7 +532,7 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        String serverURI = (args.length > 0) ? args[0] : "wss://matrixplay4.ieti.site:443";
+        String serverURI = (args.length > 0) ? args[0] : loadUrlFromJson();
         Main app = new Main(serverURI);
 
         app.run();
