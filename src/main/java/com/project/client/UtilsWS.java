@@ -57,15 +57,17 @@ public class UtilsWS {
                     if (onCloseCallBack != null) {
                         onCloseCallBack.accept(message);
                     }
+
+                    
                     if (remote) {
                         scheduleReconnect();
                     }
+                    
                 }
 
                 @Override
                 public void onError(Exception e) {
                     String message = "WS connection error: " + e.getMessage();
-                    System.out.println(message);
                     if (onErrorCallBack != null) {
                         onErrorCallBack.accept(message);
                     }
@@ -83,7 +85,7 @@ public class UtilsWS {
 
     private void scheduleReconnect() {
         if (!exitRequested.get()) {
-            scheduler.schedule(this::reconnect, 5, TimeUnit.SECONDS);
+            //scheduler.schedule(this::reconnect, 5, TimeUnit.SECONDS);
         }
     }
 
