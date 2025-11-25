@@ -104,44 +104,51 @@ public class Main {
                     System.out.println("[client] TEXT: " + text);
                 }
                 case "config" -> {
-                    String groupName = o.optString("groupName", "groupName desconocido");
-                    String url = o.optString("url", "url desconocida");
+                    String groupName = o.optString("groupName", "");
+                    String url = o.optString("url", "");
 
                     alreadyConfigured = true;
 
-                    // Guardamos el texto y activamos el modo texto
-                    text = "Grupo: " + groupName;
-                    mode = Mode.TEXT;
-                    scrollX = 0; // Reset scroll
-                    scrollingText = null;
+                    System.out.println("[client] CONFIG recibido, mostrando QR...");
 
-                    // Tiempo que queremos que se muestre (3 segundos)
-                    expireAtMs = System.currentTimeMillis() + 3_000L;
+                    // Mostrar primero el QR
+                    image = loadLocalImage("qrPongAPK.png");
+                    if (image != null) {
+                        mode = Mode.IMAGE;
+                        text = null;
+                        scrollingText = null;
+                        expireAtMs = System.currentTimeMillis() + 20000; // Mostrar QR durante 4s
+                    } else {
+                        System.out.println("[client] No se pudo cargar qr.png");
+                    }
 
-                    System.out.println("[client] Nombre del grupo recibido: " + groupName);
-
-                    // Programar la carga de la URL después de que termine el tiempo del grupo
+                    // Después de los 20s, mostrar el nombre del grupo
                     new Thread(() -> {
                         try {
-                            // Esperar exactamente el tiempo que se muestra el grupo + un pequeño margen
-                            Thread.sleep(3_000L + 100L);
-                            
-                            // Cargar la URL desde el archivo JSON en la carpeta dades
-                            if (url != null && !url.isEmpty()) {
-                                // Actualizar el texto con la URL (en el hilo principal)
-                                javax.swing.SwingUtilities.invokeLater(() -> {
-                                    text = "URL: " + url;
-                                    scrollingText = "URL: " + url; // Guardar texto completo para scroll
-                                    scrollX = WIDTH; // Empezar desde la derecha
-                                    lastScrollTime = System.currentTimeMillis();
-                                    mode = Mode.TEXT;
-                                    // Mostrar la URL por 10 segundos
-                                    expireAtMs = System.currentTimeMillis() + 30_000L;
-                                    System.out.println("[client] Mostrando URL con scroll: " + url);
-                                });
-                            } else {
-                                System.out.println("[client] No se encontró URL en el archivo JSON");
-                            }
+                            Thread.sleep(20000);
+
+                            // Ahora mostrar el nombre del grupo
+                            javax.swing.SwingUtilities.invokeLater(() -> {
+                                text = "Grupo: " + groupName;
+                                mode = Mode.TEXT;
+                                scrollX = 0;
+                                scrollingText = null;
+                                expireAtMs = System.currentTimeMillis() + 3000; // tiempo del nombre
+                            });
+
+                            // Mostrar la URL con scroll
+                            Thread.sleep(3000);
+
+                            javax.swing.SwingUtilities.invokeLater(() -> {
+                                text = "URL: " + url;
+                                scrollingText = "URL: " + url;
+                                scrollX = WIDTH;
+                                lastScrollTime = System.currentTimeMillis();
+                                mode = Mode.TEXT;
+                                expireAtMs = System.currentTimeMillis() + 30_000L;
+                                System.out.println("[client] Mostrando URL con scroll: " + url);
+                            });
+
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                         }
@@ -237,6 +244,14 @@ public class Main {
         } catch (Exception ignored) {}
     }
 
+    private BufferedImage loadLocalImage(String path) {
+        try {
+            return UtilsImage.loadImage(path);
+        } catch (Exception e) {
+            System.out.println("[client ]Error cargando " + path + ":" + e.getMessage());
+            return null;
+        }
+    }
 
     public static String loadUrlFromJson() {
         try {
