@@ -203,6 +203,13 @@ public class Main {
                         gameObjects.clear();
                     }
                 }
+                case "gameOver" -> {
+                    String winner = o.optString("winner", "");
+                    text = "WINNER: \n" + winner;
+                    mode = Mode.TEXT;
+                    image = null;
+                    System.out.println("[client] GAME OVER! Guanyador: " + winner);
+                }
                 case "image" -> {
                     String b64 = o.optString("b64", "");
                     if (b64.isEmpty()) { mode = Mode.NONE; return; }
@@ -279,16 +286,14 @@ public class Main {
             while (true) {
                 fps.beginFrame();
 
-                // ========================
-                //   SI EL JUEGO ESTÁ ACTIVO
-                // ========================
+                // Si el joc està actiu, dibuixem els objectes del joc
                 if (jocActiu) {
 
-                    // 1) Fondo azul en toda la pantalla menos la franja superior
+                    // Fons blau a la zona de joc
                     g.setColor(Color.BLUE);
                     g.fillRect(0, RESERVED_TOP, WIDTH, HEIGHT - RESERVED_TOP);
 
-                    // 2) Dibujar marcador arriba (sobre fondo negro)
+                    // Zona reservada pels punts, fons negre
                     g.setColor(Color.BLACK);
                     g.fillRect(0, 0, WIDTH, RESERVED_TOP);
 
@@ -297,17 +302,17 @@ public class Main {
                     g.setFont(scoreFont);
                     FontMetrics fmTop = g.getFontMetrics();
 
-                    // Puntajes
+                    // Puntuacions jugadors
                     g.drawString(String.valueOf(j1Punts), 2, fmTop.getAscent());
                     g.drawString(String.valueOf(j2Punts),
                                 WIDTH - fmTop.stringWidth(String.valueOf(j2Punts)) - 2,
                                 fmTop.getAscent());
 
-                    // 3) Dibujar objetos del juego
+                    // Dibuixem els objectes del joc
                     for (GameObject go : new ArrayList<>(gameObjects)) {
                         Color col = switch (go.color.toUpperCase()) {
                             case "RED" -> Color.RED;
-                            case "BLACK" -> Color.BLACK;
+                            case "BLACK" -> Color.GREEN;
                             case "WHITE" -> Color.WHITE;
                             default -> Color.GRAY;
                         };
@@ -317,15 +322,13 @@ public class Main {
 
                 } else {
 
-                    // ========================
-                    //   ESTADO NORMAL (NO JUGANT)
-                    // ========================
+                    // Quan el joc no està actiu
 
-                    // Fondo negro
+                    // Fons negre
                     g.setColor(Color.BLACK);
                     g.fillRect(0, 0, WIDTH, HEIGHT);
 
-                    // Dibujar el título en la franja superior
+                    // Dibuixar el títol a la zona reservada
                     g.setColor(Color.WHITE);
                     Font titleFont = new Font("SansSerif", Font.BOLD, 9);
                     g.setFont(titleFont);
@@ -333,7 +336,6 @@ public class Main {
 
                     g.drawString("PONG GAME", 1, fmTop.getAscent());
 
-                    // Dibujar lo normal (texto o imagen)
                     int startY = RESERVED_TOP + TEXT_TOP_PAD;
                     int availH = HEIGHT - startY;
                     int availW = WIDTH - TEXT_X;
